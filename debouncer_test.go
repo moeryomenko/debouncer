@@ -48,9 +48,9 @@ func TestDebouncer(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			d := NewDebouncer(testcase.fn, testcase.duration)
 
-			d.Debounce(context.TODO())
+			d.Call(context.TODO())
 			<-time.After(testcase.pause)
-			result, _ := d.Debounce(context.TODO())
+			result, _ := d.Call(context.TODO())
 
 			counter := result.(int)
 

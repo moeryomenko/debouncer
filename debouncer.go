@@ -21,7 +21,7 @@ func NewDebouncer(closure Closure, duration time.Duration) *Debouncer {
 	}
 }
 
-func (d *Debouncer) Debounce(ctx context.Context) (interface{}, error) {
+func (d *Debouncer) Call(ctx context.Context) (interface{}, error) {
 	if d.locker.TryLock() {
 		defer d.locker.Unlock()
 
