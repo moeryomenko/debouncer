@@ -14,7 +14,7 @@ const (
 	timeout   = 50 * time.Nanosecond
 )
 
-// DebounceLock is a spinlock-based implementation of sync.Locker.
+// DebounceLock is a spinlock-based implementation of debounced lock.
 type DebounceLock struct {
 	state     int32
 	threshold *time.Time
