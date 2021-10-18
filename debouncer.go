@@ -3,32 +3,82 @@ package debouncer
 import (
 	"context"
 	"time"
+
+	"golang.org/x/sync/singleflight"
 )
 
+type DistributedLock interface {
+	Lock() error
+	Unlock() error
+}
+
+type Cache interface {
+	// Get returns the value for the specified key if it is present in the cache.
+	Get(key string) (interface{}, error)
+	// Set inserts or updates the specified key-value pair with an expiration time.
+	Set(key string, value interface{}, expiry time.Duration) error
+}
+
+type LockFactory func(key string) DistributedLock
+
 type Debouncer struct {
-	result  interface{}
-	err     error
-	closure Closure
-	locker  DebounceLock
+	localCache       Cache
+	distributedCache Cache
+
+	localTTL time.Duration
+
+	localGroup       singleflight.Group
+	distributedGroup DistributedGroup
 }
 
-type Closure func(ctx context.Context) (interface{}, error)
+type Closure func() (interface{}, error)
 
-func NewDebouncer(closure Closure, duration time.Duration) *Debouncer {
-	return &Debouncer{
-		locker:  New(duration),
-		closure: closure,
+func NewDebouncer(duration time.Duration) *Debouncer {
+	return &Debouncer{}
+}
+
+func (d *Debouncer) takeFromDistributedCache(key string, closure Closure) func() (interface{}, error) {
+	return func() (interface{}, error) {
+		val, err := d.distributedCache.Get(key)
+		if err == nil {
+			return val, nil
+		}
+
+		return d.distributedGroup.Do(key, closure)
 	}
 }
 
-func (d *Debouncer) Call(ctx context.Context) (interface{}, error) {
-	if d.locker.TryLock() {
-		defer d.locker.Unlock()
-
-		d.result, d.err = d.closure(ctx)
-		return d.result, d.err
+func (d *Debouncer) Do(key string, closure Closure) (interface{}, error) {
+	val, err := d.localCache.Get(key)
+	if err == nil {
+		return val, nil
 	}
 
-	d.locker.WaitUnlocked()
-	return d.result, d.err
+	result := <-d.localGroup.DoChan(key, d.takeFromDistributedCache(key, closure))
+
+	d.localCache.Set(key, result.Val, d.localTTL)
+
+	return result.Val, result.Err
+}
+
+// DistributedGroup
+type DistributedGroup struct {
+	mu    LockFactory
+	cache Cache
+	ttl   time.Duration
+}
+
+func (g *DistributedGroup) Do(key string, closure Closure) (v interface{}, err error) {
+	lock := g.mu(key)
+	if err := lock.Lock(); err != nil {
+		<-time.After(time.Second)
+		return g.cache.Get(key)
+	}
+	defer lock.Unlock()
+
+	result, err := closure()
+
+	g.cache.Set(key, result, g.ttl)
+
+	return result, err
 }
