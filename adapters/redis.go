@@ -47,9 +47,6 @@ func (a *adapterLock) Unlock() error {
 	return err
 }
 
-type adapterPool struct {
-}
-
 func RedisLockFactory(cache *redis.Client) LockFactory {
 	pool := goredis.NewPool(cache)
 	locker := redsync.New(pool)

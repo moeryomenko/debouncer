@@ -5,13 +5,10 @@ go 1.17
 require (
 	github.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b
 	github.com/go-redis/redis/v8 v8.11.4
-	github.com/go-redsync/redsync v1.4.2
 	github.com/go-redsync/redsync/v4 v4.4.2
-	github.com/leanovate/gopter v0.2.9
 	github.com/moeryomenko/memsync v0.1.1
-	github.com/moeryomenko/ttlcache v0.1.1
+	github.com/moeryomenko/synx v0.6.0
 	github.com/orlangure/gnomock v0.18.0
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 )
 
 require (
@@ -30,7 +27,6 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
-	github.com/moeryomenko/synx v0.2.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -39,6 +35,7 @@ require (
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20211015200801-69063c4bb744 // indirect
 	google.golang.org/genproto v0.0.0-20210924002016-3dee208752a0 // indirect
 	google.golang.org/grpc v1.41.0 // indirect

@@ -3,47 +3,34 @@ package debouncer
 import (
 	"time"
 
-	"golang.org/x/sync/singleflight"
-
 	"github.com/moeryomenko/debouncer/adapters"
-	"github.com/moeryomenko/ttlcache"
+	"github.com/moeryomenko/synx"
 )
 
 type CacheDriver int
 
 const (
+	// Memcached indicates use Memcached like distributed cache and locker.
 	Memcached CacheDriver = iota
+	// Redis indicates use Redis like distributed cache and locker.
 	Redis
 )
 
-// Debouncer
+// Debouncer represents distributed suppressor duplicated calls.
 type Debouncer struct {
-	localCache       adapters.Cache
-	distributedCache adapters.Cache
-
 	localTTL time.Duration
 
-	localGroup       singleflight.Group
+	localGroup       *synx.Suppressor
 	distributedGroup *DistributedGroup
 }
 
-// Closure
 type Closure func() (interface{}, error)
 
-// NewDebouncer
+// NewDebouncer returns new instance of Debouncer.
 func NewDebouncer(
-	localCapacity int,
 	impl CacheDriver, dsn string,
 	localCacheTTL, distributedCacheTTL time.Duration,
 ) (*Debouncer, error) {
-	d := &Debouncer{
-		localCache: cache.NewCache(localCapacity, cache.LRU),
-		localTTL:   localCacheTTL,
-		distributedGroup: &DistributedGroup{
-			ttl: distributedCacheTTL,
-		},
-	}
-
 	var (
 		err                         error
 		distributedCache            adapters.Cache
@@ -64,56 +51,50 @@ func NewDebouncer(
 		panic("unkown driver")
 	}
 
-	d.distributedCache = distributedCache
-	d.distributedGroup.mu = distributedGroupLockFactory
-	d.distributedGroup.cache = d.distributedCache
-	return d, err
+	return &Debouncer{
+		localTTL:   localCacheTTL,
+		localGroup: synx.NewSuppressor(),
+		distributedGroup: &DistributedGroup{
+			cache: distributedCache,
+			ttl:   distributedCacheTTL,
+			mu:    distributedGroupLockFactory,
+		},
+	}, nil
 }
 
-// Do
+// Do executes and returns the results of the given function, making
+// sure that only one execution is in-flight for a given key at a
+// time. If a duplicate comes in from same instance, the duplicate
+// caller waits for the original to complete and receives the same results.
+// The return a channel that will receive the
+// results when they are ready.
 func (d *Debouncer) Do(key string, duration time.Duration, closure Closure) (interface{}, error) {
-	val, err := d.localCache.Get(key)
-	if err == nil {
-		return val, nil
-	}
-
-	result := <-d.localGroup.DoChan(key, d.takeFromDistributedCache(key, duration, closure))
+	result := <-d.localGroup.Do(key, d.localTTL, func() (interface{}, error) {
+		return d.distributedGroup.Do(key, duration, closure)
+	})
 
 	return result.Val, result.Err
 }
 
-func (d *Debouncer) takeFromDistributedCache(key string, duration time.Duration, closure Closure) Closure {
-	return func() (val interface{}, err error) {
-		defer func() {
-			if err == nil {
-				d.localCache.Set(key, val, d.localTTL)
-
-				// deferred release local lock.
-				go func() {
-					<-time.After(d.localTTL / 2)
-					d.localGroup.Forget(key)
-				}()
-			}
-		}()
-
-		val, err = d.distributedCache.Get(key)
-		if err == nil {
-			return val, nil
-		}
-
-		return d.distributedGroup.Do(key, duration, closure)
-	}
-}
-
-// DistributedGroup
+// DistributedGroup suppress duplicated calls.
 type DistributedGroup struct {
 	mu    adapters.LockFactory
 	cache adapters.Cache
 	ttl   time.Duration
 }
 
-// Do
+// Do executes and returns the results of the given function, making
+// sure that only one execution is in-flight for a given key at a
+// time. If a duplicate comes in from intances, the duplicate caller
+// waits for the only once instance to complete and receives the same results.
+// The return a channel that will receive the
+// results when they are ready.
 func (g *DistributedGroup) Do(key string, duration time.Duration, closure Closure) (interface{}, error) {
+	val, err := g.cache.Get(key)
+	if err == nil {
+		return val, nil
+	}
+
 	lock := g.mu(key, g.ttl)
 	if err := lock.Lock(); err != nil {
 		<-time.After(duration)
