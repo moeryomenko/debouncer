@@ -39,16 +39,13 @@ func NewDebouncer(
 	switch impl {
 	case Memcached:
 		distributedCache, distributedGroupLockFactory, err = adapters.NewMemcachedDriver(dsn)
-		if err != nil {
-			return nil, err
-		}
 	case Redis:
 		distributedCache, distributedGroupLockFactory, err = adapters.NewRedisDriver(dsn)
-		if err != nil {
-			return nil, err
-		}
 	default:
 		panic("unkown driver")
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	return &Debouncer{
