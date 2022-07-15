@@ -14,7 +14,7 @@ type LockFactory func(key string, duration time.Duration) DistributedLock
 // Cache
 type Cache interface {
 	// Get returns the value for the specified key if it is present in the cache.
-	Get(key string) (interface{}, error)
+	Get(key string) ([]byte, error)
 	// Set inserts or updates the specified key-value pair with an expiration time.
-	Set(key string, value interface{}, expiry time.Duration) error
+	Set(key string, value []byte, expiry time.Duration) error
 }

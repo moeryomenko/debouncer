@@ -462,8 +462,8 @@ github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lN
 github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
 github.com/moeryomenko/memsync v0.1.1 h1:cmiz64DivyeBxI1YCocGuvpfNxkXQf+rAL+Tq8XO6vc=
 github.com/moeryomenko/memsync v0.1.1/go.mod h1:pzSULapjPrlMOx0k/3Bdakx5N5OZyRK43tRMgBYa4WI=
-github.com/moeryomenko/synx v0.7.0 h1:12HlV3koQ3WK+iHmOY3+YtLuFtnIWmnPvfdAskq2ohY=
-github.com/moeryomenko/synx v0.7.0/go.mod h1:pUuL26UroU8HbMdQ03qDcx8fHYPel1s8KfnTfVrDJYY=
+github.com/moeryomenko/synx v0.8.0 h1:OkSa/+4aaWm/RYzdxGuBQTHfKE3KMctb+MMZ8CmepfQ=
+github.com/moeryomenko/synx v0.8.0/go.mod h1:pUuL26UroU8HbMdQ03qDcx8fHYPel1s8KfnTfVrDJYY=
 github.com/morikuni/aec v1.0.0 h1:nP9CBfwrvYnBRgY6qfDQkygYDmYwOilePFkwzv4dU8A=
 github.com/mrunalp/fileutils v0.5.0/go.mod h1:M1WthSahJixYnrXQl/DFQuteStB1weuxD2QJNHXfbSQ=
 github.com/munnerz/goautoneg v0.0.0-20120707110453-a547fc61f48d/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=

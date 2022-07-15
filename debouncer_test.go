@@ -48,15 +48,17 @@ func TestDebouncer(t *testing.T) {
 		return fmt.Sprintf("test_key_%d", atomic.AddInt32(&keyStart, 1))
 	}
 
+	t.Parallel()
 	for name, testcase := range testcases {
 		name := name
 		testcase := testcase
+
 		t.Run(name, func(t *testing.T) {
 			key := genKey()
 			counter := 0
-			testService := func() (interface{}, error) {
+			testService := func() ([]byte, error) {
 				counter++
-				return counter, nil
+				return nil, nil
 			}
 			// run instances.
 			instances := 3
@@ -67,7 +69,7 @@ func TestDebouncer(t *testing.T) {
 					defer wait.Done()
 					d, err := NewDebouncer(testcase.driver, testcase.dsn, time.Second, 3*time.Second)
 					if err != nil {
-						t.Fatalf("failed create debouncer: %s", err)
+						t.Errorf("failed create debouncer: %s", err)
 					}
 
 					// do concurrent waitRequests.
@@ -79,7 +81,7 @@ func TestDebouncer(t *testing.T) {
 							defer waitRequests.Done()
 							_, err := d.Do(key, time.Second, testService)
 							if err != nil {
-								t.Fatalf("failed create concurrent request: %s", err)
+								t.Errorf("failed create concurrent request: %s", err)
 							}
 						}()
 					}

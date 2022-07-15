@@ -1,13 +1,13 @@
 module github.com/moeryomenko/debouncer
 
-go 1.17
+go 1.18
 
 require (
 	github.com/bradfitz/gomemcache v0.0.0-20220106215444-fb4bf637b56d
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/go-redsync/redsync/v4 v4.5.0
 	github.com/moeryomenko/memsync v0.1.1
-	github.com/moeryomenko/synx v0.7.0
+	github.com/moeryomenko/synx v0.8.0
 	github.com/orlangure/gnomock v0.18.0
 )
 

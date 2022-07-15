@@ -24,7 +24,7 @@ type Debouncer struct {
 	distributedGroup *DistributedGroup
 }
 
-type Closure func() (interface{}, error)
+type Closure func() ([]byte, error)
 
 // NewDebouncer returns new instance of Debouncer.
 func NewDebouncer(
@@ -86,7 +86,7 @@ type DistributedGroup struct {
 // waits for the only once instance to complete and receives the same results.
 // The return a channel that will receive the
 // results when they are ready.
-func (g *DistributedGroup) Do(key string, duration time.Duration, closure Closure) (interface{}, error) {
+func (g *DistributedGroup) Do(key string, duration time.Duration, closure Closure) ([]byte, error) {
 	val, err := g.cache.Get(key)
 	if err == nil {
 		return val, nil
@@ -95,7 +95,11 @@ func (g *DistributedGroup) Do(key string, duration time.Duration, closure Closur
 	lock := g.mu(key, g.ttl)
 	if err := lock.Lock(); err != nil {
 		<-time.After(duration)
-		return g.cache.Get(key)
+		val, err := g.cache.Get(key)
+		if err != nil {
+			return closure()
+		}
+		return val, nil
 	}
 
 	result, err := closure()
