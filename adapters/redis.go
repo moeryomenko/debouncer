@@ -10,14 +10,8 @@ import (
 	goredis "github.com/go-redsync/redsync/v4/redis/goredis/v8"
 )
 
-func NewRedisDriver(dsn string) (Cache, LockFactory, error) {
-	client := redis.NewClient(&redis.Options{
-		Addr: dsn,
-	})
-	if err := client.Ping(context.Background()).Err(); err != nil {
-		return nil, nil, err
-	}
-	return &Redis{client: client}, RedisLockFactory(client), nil
+func NewRedisDriver(client *redis.Client) (Cache, LockFactory) {
+	return &Redis{client: client}, RedisLockFactory(client)
 }
 
 type Redis struct {

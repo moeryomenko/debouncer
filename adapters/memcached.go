@@ -8,12 +8,8 @@ import (
 	"github.com/moeryomenko/memsync"
 )
 
-func NewMemcachedDriver(dsn string) (Cache, LockFactory, error) {
-	client := memcache.New(dsn)
-	if err := client.Ping(); err != nil {
-		return nil, nil, err
-	}
-	return &Memcached{client: client}, MemcacheLockFactory(client), nil
+func NewMemcachedDriver(client *memcache.Client) (Cache, LockFactory) {
+	return &Memcached{client: client}, MemcacheLockFactory(client)
 }
 
 type Memcached struct {

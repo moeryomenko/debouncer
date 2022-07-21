@@ -5,6 +5,7 @@ import (
 
 	"github.com/moeryomenko/debouncer/adapters"
 	"github.com/moeryomenko/synx"
+	cache "github.com/moeryomenko/ttlcache"
 )
 
 type CacheDriver int
@@ -21,40 +22,41 @@ type Debouncer struct {
 	localTTL time.Duration
 
 	localGroup       *synx.Suppressor
+	localCache       cache.Cache
 	distributedGroup *DistributedGroup
 }
 
 type Closure func() ([]byte, error)
 
-// NewDebouncer returns new instance of Debouncer.
-func NewDebouncer(
-	impl CacheDriver, dsn string,
-	localCacheTTL, distributedCacheTTL time.Duration,
-) (*Debouncer, error) {
-	var (
-		err                         error
-		distributedCache            adapters.Cache
-		distributedGroupLockFactory adapters.LockFactory
-	)
-	switch impl {
-	case Memcached:
-		distributedCache, distributedGroupLockFactory, err = adapters.NewMemcachedDriver(dsn)
-	case Redis:
-		distributedCache, distributedGroupLockFactory, err = adapters.NewRedisDriver(dsn)
-	default:
-		panic("unkown driver")
-	}
-	if err != nil {
-		return nil, err
-	}
+type Config struct {
+	Local
+	Distributed
+}
 
+type Local struct {
+	TTL      time.Duration
+	Capacity int
+	Policy   cache.EvictionPolicy
+}
+
+type Distributed struct {
+	Locker adapters.LockFactory
+	Cache  adapters.Cache
+	Retry  time.Duration
+	TTL    time.Duration
+}
+
+// NewDebouncer returns new instance of Debouncer.
+func NewDebouncer(cfg Config) (*Debouncer, error) {
 	return &Debouncer{
-		localTTL:   localCacheTTL,
-		localGroup: synx.NewSuppressor(),
+		localTTL:   cfg.Local.TTL,
+		localCache: cache.NewCache(cfg.Local.Capacity, cfg.Local.Policy),
+		localGroup: synx.NewSuppressor(cfg.Local.TTL),
 		distributedGroup: &DistributedGroup{
-			cache: distributedCache,
-			ttl:   distributedCacheTTL,
-			mu:    distributedGroupLockFactory,
+			cache: cfg.Distributed.Cache,
+			ttl:   cfg.Distributed.TTL,
+			mu:    cfg.Distributed.Locker,
+			retry: cfg.Distributed.Retry,
 		},
 	}, nil
 }
@@ -65,10 +67,19 @@ func NewDebouncer(
 // caller waits for the original to complete and receives the same results.
 // The return a channel that will receive the
 // results when they are ready.
-func (d *Debouncer) Do(key string, duration time.Duration, closure Closure) (interface{}, error) {
-	result := <-d.localGroup.Do(key, d.localTTL, func() (interface{}, error) {
-		return d.distributedGroup.Do(key, duration, closure)
+func (d *Debouncer) Do(key string, closure Closure) (interface{}, error) {
+	val, err := d.localCache.Get(key)
+	if err == nil {
+		return val, nil
+	}
+
+	result := <-d.localGroup.Do(key, func() (interface{}, error) {
+		return d.distributedGroup.Do(key, closure)
 	})
+
+	if result.Err == nil {
+		_ = d.localCache.Set(key, result.Val, d.localTTL)
+	}
 
 	return result.Val, result.Err
 }
@@ -78,6 +89,7 @@ type DistributedGroup struct {
 	mu    adapters.LockFactory
 	cache adapters.Cache
 	ttl   time.Duration
+	retry time.Duration
 }
 
 // Do executes and returns the results of the given function, making
@@ -86,7 +98,7 @@ type DistributedGroup struct {
 // waits for the only once instance to complete and receives the same results.
 // The return a channel that will receive the
 // results when they are ready.
-func (g *DistributedGroup) Do(key string, duration time.Duration, closure Closure) ([]byte, error) {
+func (g *DistributedGroup) Do(key string, closure Closure) ([]byte, error) {
 	val, err := g.cache.Get(key)
 	if err == nil {
 		return val, nil
@@ -94,7 +106,7 @@ func (g *DistributedGroup) Do(key string, duration time.Duration, closure Closur
 
 	lock := g.mu(key, g.ttl)
 	if err := lock.Lock(); err != nil {
-		<-time.After(duration)
+		<-time.After(g.retry)
 		val, err := g.cache.Get(key)
 		if err != nil {
 			return closure()
