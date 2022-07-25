@@ -21,19 +21,28 @@ import (
 
 func main() {
 	// create distributed suppressor.
-	suppressor, err := debouncer.NewDebouncer(
-		debouncer.Redis,   // driver.
-		"localhost:6379",  // host and port to redis.
-		time.Second,       // expiration duration for instance cache.
-		3*time.Second,     // expiration duration for Redis.
-	)
+	redisCache, redisLocker := adapters.NewRedisDriver(redis.NewClient(&redis.Options{Addr: "<ip:port>"}))
+
+	suppressor, err := debouncer.NewDebouncer(debouncer.Config{
+		Local: {
+			TTL:      time.Second,
+			Capacity: 100,
+			Policy:   cache.LFU,
+		},
+		Distributed: {
+			Cache:  redisCache,
+			Locker: redisLocker,
+			Retry:  20 * time.Millisecond,
+			TTL:    3 * time.Second,
+		},
+	})
 	if err != nil {
 		panic("could not create suppressor")
 	}
 
 	...
 
-	result, err := suppressor.Do(key /* token for acquire fn */, 300 * time.Millisecond /* time of execute fn */, fn)
+	result, err := suppressor.Do(key /* token for acquire fn */, fn)
 	if err != nil {
 		panic("something gone wrong")
 	}
