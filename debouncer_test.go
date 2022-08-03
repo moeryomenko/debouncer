@@ -2,6 +2,7 @@ package debouncer
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -93,6 +94,7 @@ func TestDebouncer(t *testing.T) {
 			key := `test`
 			counter := int32(0)
 			testService := func() (any, error) {
+				<-time.After(time.Second)
 				atomic.AddInt32(&counter, 1)
 				return value, nil
 			}
@@ -112,17 +114,43 @@ func TestDebouncer(t *testing.T) {
 					}
 
 					// do concurrent waitRequests.
-					requests := 3
+					requests := 10
 					waitRequests := sync.WaitGroup{}
 					waitRequests.Add(requests)
 					for i := 0; i < requests; i++ {
+						i := i
 						go func() {
-							defer waitRequests.Done()
-							result, err := d.Do(key, testService)
-							require.NoError(t, err)
-							v, ok := result.(map[string]Data)
-							require.True(t, ok, reflect.TypeOf(result))
-							require.Equal(t, value, v)
+							defer func() {
+								waitRequests.Done()
+							}()
+
+							timedRun(t, fmt.Sprintf(`instance%d_request%d`, instance, i), func(t *testing.T) {
+								result, err := d.Do(key, testService)
+								require.NoError(t, err)
+								v, ok := result.(map[string]Data)
+								require.True(t, ok, reflect.TypeOf(result))
+								require.Equal(t, value, v)
+							})
+
+							// take from local cache.
+							<-time.After(100 * time.Millisecond)
+							timedRun(t, fmt.Sprintf(`instance%d_request%d_after_first_request`, instance, i), func(t *testing.T) {
+								result, err := d.Do(key, testService)
+								require.NoError(t, err)
+								v, ok := result.(map[string]Data)
+								require.True(t, ok, reflect.TypeOf(result))
+								require.Equal(t, value, v)
+							})
+
+							// take from distributed cache.
+							<-time.After(1 * time.Second)
+							timedRun(t, fmt.Sprintf(`instance%d_request%d_distributed_cache`, instance, i), func(t *testing.T) {
+								result, err := d.Do(key, testService)
+								require.NoError(t, err)
+								v, ok := result.(map[string]Data)
+								require.True(t, ok, reflect.TypeOf(result))
+								require.Equal(t, value, v)
+							})
 						}()
 					}
 
@@ -136,4 +164,13 @@ func TestDebouncer(t *testing.T) {
 			}
 		})
 	}
+}
+
+func timedRun(t *testing.T, name string, fn func(t *testing.T)) {
+	start := time.Now()
+	defer func() {
+		t.Logf(`execution time of request %s: %s`, name, time.Since(start).String())
+	}()
+
+	fn(t)
 }

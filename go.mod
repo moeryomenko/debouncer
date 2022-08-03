@@ -7,7 +7,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/go-redsync/redsync/v4 v4.5.0
 	github.com/moeryomenko/memsync v0.1.1
-	github.com/moeryomenko/suppressor v0.0.0-20220803130004-0fa335d7bab2
+	github.com/moeryomenko/suppressor v0.0.1
 	github.com/moeryomenko/ttlcache v0.1.4
 	github.com/orlangure/gnomock v0.18.0
 	github.com/stretchr/testify v1.7.0
