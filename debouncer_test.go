@@ -1,7 +1,8 @@
 package debouncer
 
 import (
-	"fmt"
+	"encoding/json"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -14,7 +15,30 @@ import (
 	"github.com/orlangure/gnomock"
 	"github.com/orlangure/gnomock/preset/memcached"
 	nomockredis "github.com/orlangure/gnomock/preset/redis"
+	"github.com/stretchr/testify/require"
 )
+
+type Data struct {
+	IntValue    int    `json:"int_value"`
+	StringValue string `json:"string_value"`
+}
+
+var value = map[string]Data{
+	`key1`: {IntValue: 10, StringValue: `test`},
+	`key2`: {IntValue: 15, StringValue: `test`},
+}
+
+type testDeserilizer struct{}
+
+func (testDeserilizer) Serialize(v interface{}) ([]byte, error) {
+	return json.Marshal(v)
+}
+
+func (testDeserilizer) Deserilize(b []byte) (interface{}, error) {
+	var v map[string]Data
+	err := json.Unmarshal(b, &v)
+	return v, err
+}
 
 func TestDebouncer(t *testing.T) {
 	mem, err := gnomock.Start(memcached.Preset())
@@ -39,16 +63,18 @@ func TestDebouncer(t *testing.T) {
 
 	testcases := map[string]Distributed{
 		"Memcached": {
-			Cache:  memCache,
-			Locker: memLock,
-			Retry:  20 * time.Millisecond,
-			TTL:    3 * time.Second,
+			Cache:      memCache,
+			Locker:     memLock,
+			Retry:      20 * time.Millisecond,
+			TTL:        3 * time.Second,
+			Serializer: testDeserilizer{},
 		},
 		"Redis": {
-			Cache:  redisCache,
-			Locker: redisLock,
-			Retry:  20 * time.Millisecond,
-			TTL:    3 * time.Second,
+			Cache:      redisCache,
+			Locker:     redisLock,
+			Retry:      20 * time.Millisecond,
+			TTL:        3 * time.Second,
+			Serializer: testDeserilizer{},
 		},
 	}
 
@@ -58,22 +84,17 @@ func TestDebouncer(t *testing.T) {
 		Policy:   cache.LFU,
 	}
 
-	keyStart := int32(0)
-	genKey := func() string {
-		return fmt.Sprintf("test_key_%d", atomic.AddInt32(&keyStart, 1))
-	}
-
 	t.Parallel()
 	for name, testcase := range testcases {
 		name := name
 		testcase := testcase
 
 		t.Run(name, func(t *testing.T) {
-			key := genKey()
+			key := `test`
 			counter := int32(0)
-			testService := func() ([]byte, error) {
+			testService := func() (any, error) {
 				atomic.AddInt32(&counter, 1)
-				return nil, nil
+				return value, nil
 			}
 			// run instances.
 			instances := 3
@@ -97,10 +118,11 @@ func TestDebouncer(t *testing.T) {
 					for i := 0; i < requests; i++ {
 						go func() {
 							defer waitRequests.Done()
-							_, err := d.Do(key, testService)
-							if err != nil {
-								t.Errorf("failed create concurrent request: %s", err)
-							}
+							result, err := d.Do(key, testService)
+							require.NoError(t, err)
+							v, ok := result.(map[string]Data)
+							require.True(t, ok, reflect.TypeOf(result))
+							require.Equal(t, value, v)
 						}()
 					}
 

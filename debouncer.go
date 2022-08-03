@@ -1,10 +1,11 @@
 package debouncer
 
 import (
+	"context"
 	"time"
 
 	"github.com/moeryomenko/debouncer/adapters"
-	"github.com/moeryomenko/synx"
+	"github.com/moeryomenko/suppressor"
 	cache "github.com/moeryomenko/ttlcache"
 )
 
@@ -17,16 +18,20 @@ const (
 	Redis
 )
 
+type Serializer interface {
+	Serialize(any) ([]byte, error)
+	Deserilize([]byte) (any, error)
+}
+
 // Debouncer represents distributed suppressor duplicated calls.
 type Debouncer struct {
 	localTTL time.Duration
 
-	localGroup       *synx.Suppressor
-	localCache       cache.Cache
+	localGroup       *suppressor.Suppressor
 	distributedGroup *DistributedGroup
 }
 
-type Closure func() ([]byte, error)
+type Closure func() (any, error)
 
 type Config struct {
 	Local
@@ -40,23 +45,24 @@ type Local struct {
 }
 
 type Distributed struct {
-	Locker adapters.LockFactory
-	Cache  adapters.Cache
-	Retry  time.Duration
-	TTL    time.Duration
+	Locker     adapters.LockFactory
+	Cache      adapters.Cache
+	Retry      time.Duration
+	TTL        time.Duration
+	Serializer Serializer
 }
 
 // NewDebouncer returns new instance of Debouncer.
 func NewDebouncer(cfg Config) (*Debouncer, error) {
 	return &Debouncer{
 		localTTL:   cfg.Local.TTL,
-		localCache: cache.NewCache(cfg.Local.Capacity, cfg.Local.Policy),
-		localGroup: synx.NewSuppressor(cfg.Local.TTL),
+		localGroup: suppressor.New(cfg.Capacity, cfg.Local.TTL, cfg.Local.Policy),
 		distributedGroup: &DistributedGroup{
 			cache: cfg.Distributed.Cache,
 			ttl:   cfg.Distributed.TTL,
 			mu:    cfg.Distributed.Locker,
 			retry: cfg.Distributed.Retry,
+			conv:  cfg.Distributed.Serializer,
 		},
 	}, nil
 }
@@ -67,19 +73,10 @@ func NewDebouncer(cfg Config) (*Debouncer, error) {
 // caller waits for the original to complete and receives the same results.
 // The return a channel that will receive the
 // results when they are ready.
-func (d *Debouncer) Do(key string, closure Closure) (interface{}, error) {
-	val, err := d.localCache.Get(key)
-	if err == nil {
-		return val, nil
-	}
-
-	result := <-d.localGroup.Do(key, func() (interface{}, error) {
+func (d *Debouncer) Do(key string, closure Closure) (any, error) {
+	result := d.localGroup.Do(key, func() (any, error) {
 		return d.distributedGroup.Do(key, closure)
 	})
-
-	if result.Err == nil {
-		_ = d.localCache.Set(key, result.Val, d.localTTL)
-	}
 
 	return result.Val, result.Err
 }
@@ -90,6 +87,7 @@ type DistributedGroup struct {
 	cache adapters.Cache
 	ttl   time.Duration
 	retry time.Duration
+	conv  Serializer
 }
 
 // Do executes and returns the results of the given function, making
@@ -98,25 +96,63 @@ type DistributedGroup struct {
 // waits for the only once instance to complete and receives the same results.
 // The return a channel that will receive the
 // results when they are ready.
-func (g *DistributedGroup) Do(key string, closure Closure) ([]byte, error) {
+func (g *DistributedGroup) Do(key string, closure Closure) (any, error) {
 	val, err := g.cache.Get(key)
 	if err == nil {
-		return val, nil
+		return g.conv.Deserilize(val)
 	}
 
 	lock := g.mu(key, g.ttl)
-	if err := lock.Lock(); err != nil {
-		<-time.After(g.retry)
-		val, err := g.cache.Get(key)
-		if err != nil {
-			return closure()
-		}
-		return val, nil
+	if lockErr := lock.Lock(); lockErr != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), g.ttl)
+		defer cancel()
+
+		tries := int(g.ttl / g.retry)
+
+		return pollResult(ctx, g.retry, tries, func() (any, error) {
+			val, err := g.cache.Get(key)
+			if err != nil {
+				return nil, err
+			}
+			return g.conv.Deserilize(val)
+		})
 	}
 
 	result, err := closure()
+	if err != nil {
+		return nil, err
+	}
 
-	g.cache.Set(key, result, g.ttl)
+	binary, err := g.conv.Serialize(result)
+	if err != nil {
+		return result, nil
+	}
 
-	return result, err
+	err = g.cache.Set(key, binary, g.ttl)
+	if err != nil {
+		return result, nil
+	}
+
+	return result, nil
+}
+
+func pollResult(ctx context.Context, retry time.Duration, tries int, action Closure) (any, error) {
+	ticker := time.NewTicker(retry)
+	defer ticker.Stop()
+
+	counter := 0
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-ticker.C:
+			counter++
+			result, err := action()
+			if err != nil && counter != tries {
+				continue
+			}
+			return result, err
+		}
+	}
 }
