@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/moeryomenko/debouncer"
+	cache "github.com/moeryomenko/ttlcache"
 )
 
 func main() {
@@ -26,8 +27,7 @@ func main() {
 	suppressor, err := debouncer.NewDebouncer(debouncer.Config{
 		Local: {
 			TTL:      time.Second,
-			Capacity: 100,
-			Policy:   cache.LFU,
+			Caceh:    cache.NewCache(100, cache.ARC),
 		},
 		Distributed: {
 			Cache:  redisCache,
