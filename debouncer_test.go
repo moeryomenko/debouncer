@@ -80,9 +80,8 @@ func TestDebouncer(t *testing.T) {
 	}
 
 	localCache := Local{
-		TTL:      time.Second,
-		Capacity: 100,
-		Policy:   cache.LFU,
+		TTL:   time.Second,
+		Cache: cache.NewCache(100, cache.ARC),
 	}
 
 	t.Parallel()

@@ -7,8 +7,8 @@ require (
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/go-redsync/redsync/v4 v4.5.0
 	github.com/moeryomenko/memsync v0.1.1
-	github.com/moeryomenko/suppressor v0.0.1
-	github.com/moeryomenko/ttlcache v0.1.4
+	github.com/moeryomenko/suppressor v0.1.0
+	github.com/moeryomenko/ttlcache v0.1.5
 	github.com/orlangure/gnomock v0.18.0
 	github.com/stretchr/testify v1.7.0
 )
@@ -30,7 +30,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/moeryomenko/synx v0.9.0 // indirect
+	github.com/moeryomenko/synx v0.10.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

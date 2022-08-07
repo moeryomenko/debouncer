@@ -6,16 +6,6 @@ import (
 
 	"github.com/moeryomenko/debouncer/adapters"
 	"github.com/moeryomenko/suppressor"
-	cache "github.com/moeryomenko/ttlcache"
-)
-
-type CacheDriver int
-
-const (
-	// Memcached indicates use Memcached like distributed cache and locker.
-	Memcached CacheDriver = iota
-	// Redis indicates use Redis like distributed cache and locker.
-	Redis
 )
 
 type Serializer interface {
@@ -25,8 +15,6 @@ type Serializer interface {
 
 // Debouncer represents distributed suppressor duplicated calls.
 type Debouncer struct {
-	localTTL time.Duration
-
 	localGroup       *suppressor.Suppressor
 	distributedGroup *DistributedGroup
 }
@@ -39,9 +27,8 @@ type Config struct {
 }
 
 type Local struct {
-	TTL      time.Duration
-	Capacity int
-	Policy   cache.EvictionPolicy
+	TTL   time.Duration
+	Cache suppressor.Cache
 }
 
 type Distributed struct {
@@ -55,8 +42,7 @@ type Distributed struct {
 // NewDebouncer returns new instance of Debouncer.
 func NewDebouncer(cfg Config) (*Debouncer, error) {
 	return &Debouncer{
-		localTTL:   cfg.Local.TTL,
-		localGroup: suppressor.New(cfg.Capacity, cfg.Local.TTL, cfg.Local.Policy),
+		localGroup: suppressor.New(cfg.Local.TTL, cfg.Local.Cache),
 		distributedGroup: &DistributedGroup{
 			cache: cfg.Distributed.Cache,
 			ttl:   cfg.Distributed.TTL,
