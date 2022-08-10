@@ -114,10 +114,7 @@ func (g *DistributedGroup) Do(key string, closure Closure) (any, error) {
 		return result, nil
 	}
 
-	err = g.cache.Set(key, binary, g.ttl)
-	if err != nil {
-		return result, nil
-	}
+	_ = g.cache.Set(key, binary, g.ttl)
 
 	return result, nil
 }
