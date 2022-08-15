@@ -1,6 +1,7 @@
 package debouncer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -79,11 +80,6 @@ func TestDebouncer(t *testing.T) {
 		},
 	}
 
-	localCache := Local{
-		TTL:   time.Second,
-		Cache: cache.NewCache(100, cache.ARC),
-	}
-
 	t.Parallel()
 	for name, testcase := range testcases {
 		name := name
@@ -104,6 +100,15 @@ func TestDebouncer(t *testing.T) {
 			for i := 0; i < 3; i++ {
 				go func(instance int) {
 					defer wait.Done()
+
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+
+					localCache := Local{
+						TTL:   time.Second,
+						Cache: cache.NewCache(ctx, 100),
+					}
+
 					d, err := NewDebouncer(Config{
 						Local:       localCache,
 						Distributed: testcase,
