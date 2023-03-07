@@ -39,9 +39,9 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
-	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
-	golang.org/x/sys v0.0.0-20211015200801-69063c4bb744 // indirect
+	golang.org/x/sys v0.5.0 // indirect
 	google.golang.org/genproto v0.0.0-20210924002016-3dee208752a0 // indirect
 	google.golang.org/grpc v1.41.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
