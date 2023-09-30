@@ -4,19 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/go-redis/redis/v8"
 	"github.com/moeryomenko/debouncer/adapters"
+	"github.com/moeryomenko/suppressor"
 	cache "github.com/moeryomenko/ttlcache"
 	"github.com/orlangure/gnomock"
 	"github.com/orlangure/gnomock/preset/memcached"
 	nomockredis "github.com/orlangure/gnomock/preset/redis"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,14 +30,14 @@ var value = map[string]Data{
 	`key2`: {IntValue: 15, StringValue: `test`},
 }
 
-type testDeserilizer struct{}
+type testDeserilizer[V any] struct{}
 
-func (testDeserilizer) Serialize(v interface{}) ([]byte, error) {
+func (testDeserilizer[V]) Serialize(v V) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (testDeserilizer) Deserilize(b []byte) (interface{}, error) {
-	var v map[string]Data
+func (testDeserilizer[V]) Deserilize(b []byte) (V, error) {
+	var v V
 	err := json.Unmarshal(b, &v)
 	return v, err
 }
@@ -63,20 +63,20 @@ func TestDebouncer(t *testing.T) {
 
 	redisCache, redisLock := adapters.NewRedisDriver(redis.NewClient(&redis.Options{Addr: red.DefaultAddress()}))
 
-	testcases := map[string]Distributed{
+	testcases := map[string]Distributed[map[string]Data]{
 		"Memcached": {
 			Cache:      memCache,
 			Locker:     memLock,
 			Retry:      20 * time.Millisecond,
 			TTL:        3 * time.Second,
-			Serializer: testDeserilizer{},
+			Serializer: testDeserilizer[map[string]Data]{},
 		},
 		"Redis": {
 			Cache:      redisCache,
 			Locker:     redisLock,
 			Retry:      20 * time.Millisecond,
 			TTL:        3 * time.Second,
-			Serializer: testDeserilizer{},
+			Serializer: testDeserilizer[map[string]Data]{},
 		},
 	}
 
@@ -88,7 +88,7 @@ func TestDebouncer(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			key := `test`
 			counter := int32(0)
-			testService := func() (any, error) {
+			testService := func() (map[string]Data, error) {
 				<-time.After(time.Second)
 				atomic.AddInt32(&counter, 1)
 				return value, nil
@@ -104,12 +104,12 @@ func TestDebouncer(t *testing.T) {
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
 
-					localCache := Local{
+					localCache := Local[map[string]Data]{
 						TTL:   time.Second,
-						Cache: cache.NewCache(ctx, 100),
+						Cache: cache.NewCache[string, suppressor.Result[map[string]Data]](ctx, 100),
 					}
 
-					d, err := NewDebouncer(Config{
+					d, err := NewDebouncer(Config[map[string]Data]{
 						Local:       localCache,
 						Distributed: testcase,
 					})
@@ -131,9 +131,7 @@ func TestDebouncer(t *testing.T) {
 							timedRun(t, fmt.Sprintf(`instance%d_request%d`, instance, i), func(t *testing.T) {
 								result, err := d.Do(key, testService)
 								require.NoError(t, err)
-								v, ok := result.(map[string]Data)
-								require.True(t, ok, reflect.TypeOf(result))
-								require.Equal(t, value, v)
+								require.Equal(t, value, result)
 							})
 
 							// take from local cache.
@@ -141,9 +139,7 @@ func TestDebouncer(t *testing.T) {
 							timedRun(t, fmt.Sprintf(`instance%d_request%d_after_first_request`, instance, i), func(t *testing.T) {
 								result, err := d.Do(key, testService)
 								require.NoError(t, err)
-								v, ok := result.(map[string]Data)
-								require.True(t, ok, reflect.TypeOf(result))
-								require.Equal(t, value, v)
+								require.Equal(t, value, result)
 							})
 
 							// take from distributed cache.
@@ -151,9 +147,7 @@ func TestDebouncer(t *testing.T) {
 							timedRun(t, fmt.Sprintf(`instance%d_request%d_distributed_cache`, instance, i), func(t *testing.T) {
 								result, err := d.Do(key, testService)
 								require.NoError(t, err)
-								v, ok := result.(map[string]Data)
-								require.True(t, ok, reflect.TypeOf(result))
-								require.Equal(t, value, v)
+								require.Equal(t, value, result)
 							})
 						}()
 					}

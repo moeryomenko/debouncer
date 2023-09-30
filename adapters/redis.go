@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	redis "github.com/go-redis/redis/v8"
+	redis "github.com/redis/go-redis/v9"
 	"github.com/go-redsync/redsync/v4"
-	goredis "github.com/go-redsync/redsync/v4/redis/goredis/v8"
+	goredis "github.com/go-redsync/redsync/v4/redis/goredis/v9"
 )
 
 func NewRedisDriver(client *redis.Client) (Cache, LockFactory) {
