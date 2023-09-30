@@ -11,7 +11,7 @@ import (
 )
 
 func NewRedisDriver(client *redis.Client) (Cache, LockFactory) {
-	return &Redis{client: client}, RedisLockFactory(client)
+	return &Redis{client: client}, RedisLockFactory(goredisRedLock(client))
 }
 
 type Redis struct {
@@ -41,9 +41,12 @@ func (a *adapterLock) Unlock() error {
 	return err
 }
 
-func RedisLockFactory(cache *redis.Client) LockFactory {
+func goredisRedLock(cache *redis.Client) *redsync.Redsync {
 	pool := goredis.NewPool(cache)
-	locker := redsync.New(pool)
+	return redsync.New(pool)
+}
+
+func RedisLockFactory(locker *redsync.Redsync) LockFactory {
 	return func(key string, duration time.Duration) DistributedLock {
 		mutex := locker.NewMutex(
 			fmt.Sprintf("lock_%s", key),
