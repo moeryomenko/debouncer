@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -17,7 +18,7 @@ type Memcached struct {
 }
 
 // Get returns the value for the specified key if it is present in the cache.
-func (m *Memcached) Get(key string) ([]byte, error) {
+func (m *Memcached) Get(_ context.Context, key string) ([]byte, error) {
 	item, err := m.client.Get(key)
 	if err != nil {
 		return nil, err
@@ -26,7 +27,7 @@ func (m *Memcached) Get(key string) ([]byte, error) {
 }
 
 // Set inserts or updates the specified key-value pair with an expiration time.
-func (m *Memcached) Set(key string, value []byte, expiry time.Duration) error {
+func (m *Memcached) Set(_ context.Context, key string, value []byte, expiry time.Duration) error {
 	return m.client.Add(&memcache.Item{
 		Key:        key,
 		Value:      value,

@@ -19,13 +19,13 @@ type Redis struct {
 }
 
 // Get returns the value for the specified key if it is present in the cache.
-func (r *Redis) Get(key string) ([]byte, error) {
-	return r.client.Get(context.Background(), key).Bytes()
+func (r *Redis) Get(ctx context.Context, key string) ([]byte, error) {
+	return r.client.Get(ctx, key).Bytes()
 }
 
 // Set inserts or updates the specified key-value pair with an expiration time.
-func (r *Redis) Set(key string, value []byte, expiry time.Duration) error {
-	return r.client.SetNX(context.Background(), key, value, expiry).Err()
+func (r *Redis) Set(ctx context.Context, key string, value []byte, expiry time.Duration) error {
+	return r.client.SetNX(ctx, key, value, expiry).Err()
 }
 
 type adapterLock struct {

@@ -34,8 +34,8 @@ func (r *Redigo) query(ctx context.Context, fn func(conn redis.Conn) error) (err
 }
 
 // Get returns the value for the specified key if it is present in the cache.
-func (r *Redigo) Get(key string) (value []byte, err error) {
-	err = r.query(context.Background(), func(conn redis.Conn) (err error) {
+func (r *Redigo) Get(ctx context.Context, key string) (value []byte, err error) {
+	err = r.query(ctx, func(conn redis.Conn) (err error) {
 		v, err := redis.String(conn.Do(`GET`, key))
 		if err != nil {
 			return err
@@ -50,8 +50,8 @@ func (r *Redigo) Get(key string) (value []byte, err error) {
 }
 
 // Set inserts or updates the specified key-value pair with an expiration time.
-func (r *Redigo) Set(key string, value []byte, expiry time.Duration) error {
-	return r.query(context.Background(), func(conn redis.Conn) error {
+func (r *Redigo) Set(ctx context.Context, key string, value []byte, expiry time.Duration) error {
+	return r.query(ctx, func(conn redis.Conn) error {
 		_, err := conn.Do(`SET`, key, string(value))
 		return err
 	})

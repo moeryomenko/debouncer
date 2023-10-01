@@ -19,7 +19,7 @@ type Debouncer[V any] struct {
 	distributedGroup *DistributedGroup[V]
 }
 
-type Closure[V any] func() (V, error)
+type Closure[V any] func(context.Context) (V, error)
 
 type Config[V any] struct {
 	Local[V]
@@ -59,9 +59,9 @@ func NewDebouncer[V any](cfg Config[V]) (*Debouncer[V], error) {
 // caller waits for the original to complete and receives the same results.
 // The return a channel that will receive the
 // results when they are ready.
-func (d *Debouncer[V]) Do(key string, closure Closure[V]) (V, error) {
+func (d *Debouncer[V]) Do(ctx context.Context, key string, closure Closure[V]) (V, error) {
 	result := d.localGroup.Do(key, func() (V, error) {
-		return d.distributedGroup.Do(key, closure)
+		return d.distributedGroup.Do(ctx, key, closure)
 	})
 
 	return result.Val, result.Err
@@ -82,8 +82,8 @@ type DistributedGroup[V any] struct {
 // waits for the only once instance to complete and receives the same results.
 // The return a channel that will receive the
 // results when they are ready.
-func (g *DistributedGroup[V]) Do(key string, closure Closure[V]) (V, error) {
-	val, err := g.cache.Get(key)
+func (g *DistributedGroup[V]) Do(ctx context.Context, key string, closure Closure[V]) (V, error) {
+	val, err := g.cache.Get(ctx, key)
 	if err == nil {
 		return g.conv.Deserilize(val)
 	}
@@ -96,7 +96,7 @@ func (g *DistributedGroup[V]) Do(key string, closure Closure[V]) (V, error) {
 		tries := int(g.ttl / g.retry)
 
 		return pollResult(ctx, g.retry, tries, func() (V, error) {
-			val, err := g.cache.Get(key)
+			val, err := g.cache.Get(ctx, key)
 			if err != nil {
 				var v V
 				return v, err
@@ -105,7 +105,7 @@ func (g *DistributedGroup[V]) Do(key string, closure Closure[V]) (V, error) {
 		})
 	}
 
-	result, err := closure()
+	result, err := closure(ctx)
 	if err != nil {
 		var v V
 		return v, err
@@ -116,12 +116,12 @@ func (g *DistributedGroup[V]) Do(key string, closure Closure[V]) (V, error) {
 		return result, nil
 	}
 
-	_ = g.cache.Set(key, binary, g.ttl)
+	_ = g.cache.Set(ctx, key, binary, g.ttl)
 
 	return result, nil
 }
 
-func pollResult[V any](ctx context.Context, retry time.Duration, tries int, action Closure[V]) (V, error) {
+func pollResult[V any](ctx context.Context, retry time.Duration, tries int, action func() (V, error)) (V, error) {
 	ticker := time.NewTicker(retry)
 	defer ticker.Stop()
 
