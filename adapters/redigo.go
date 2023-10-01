@@ -3,7 +3,6 @@ package adapters
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/go-redsync/redsync/v4"
@@ -37,16 +36,23 @@ func (r *Redigo) query(ctx context.Context, fn func(conn redis.Conn) error) (err
 // Get returns the value for the specified key if it is present in the cache.
 func (r *Redigo) Get(key string) (value []byte, err error) {
 	err = r.query(context.Background(), func(conn redis.Conn) (err error) {
-		value, err = redis.Bytes(conn.Do(`GET`, key))
-		return err
+		v, err := redis.String(conn.Do(`GET`, key))
+		if err != nil {
+			return err
+		}
+		if v == "" {
+			return redis.ErrNil
+		}
+		value = []byte(v)
+		return nil
 	})
-	return nil, nil
+	return value, err
 }
 
 // Set inserts or updates the specified key-value pair with an expiration time.
 func (r *Redigo) Set(key string, value []byte, expiry time.Duration) error {
 	return r.query(context.Background(), func(conn redis.Conn) error {
-		_, err := conn.Do(`SET`, string(value))
+		_, err := conn.Do(`SET`, key, string(value))
 		return err
 	})
 }
