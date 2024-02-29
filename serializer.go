@@ -33,7 +33,7 @@ func (s *GobSerializer[V]) Serialize(value V) ([]byte, error) {
 	return buff.Bytes(), nil
 }
 
-func (s *GobSerializer[V]) Deserialize(data []byte) (V, error) {
+func (s *GobSerializer[V]) Deserilize(data []byte) (V, error) {
 	buff, _ := s.pool.Get().(*bytes.Buffer)
 	_, _ = buff.Write(data)
 	defer func() {
@@ -49,11 +49,11 @@ func (s *GobSerializer[V]) Deserialize(data []byte) (V, error) {
 
 type JSONSerializer[V any] struct{}
 
-func (s *JSONSerializer[V]) Serialize(value V) ([]byte, error) {
+func (JSONSerializer[V]) Serialize(value V) ([]byte, error) {
 	return json.Marshal(value)
 }
 
-func (s *JSONSerializer[V]) Deserialize(data []byte) (V, error) {
+func (JSONSerializer[V]) Deserilize(data []byte) (V, error) {
 	var v V
 	err := json.Unmarshal(data, &v)
 	return v, err
