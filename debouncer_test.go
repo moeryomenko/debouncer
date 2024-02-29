@@ -2,7 +2,6 @@ package debouncer
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -28,18 +27,6 @@ type Data struct {
 var value = map[string]Data{
 	`key1`: {IntValue: 10, StringValue: `test`},
 	`key2`: {IntValue: 15, StringValue: `test`},
-}
-
-type testDeserilizer[V any] struct{}
-
-func (testDeserilizer[V]) Serialize(v V) ([]byte, error) {
-	return json.Marshal(v)
-}
-
-func (testDeserilizer[V]) Deserilize(b []byte) (V, error) {
-	var v V
-	err := json.Unmarshal(b, &v)
-	return v, err
 }
 
 func TestDebouncer(t *testing.T) {
@@ -75,21 +62,21 @@ func TestDebouncer(t *testing.T) {
 			Locker:     memLock,
 			Retry:      20 * time.Millisecond,
 			TTL:        3 * time.Second,
-			Serializer: testDeserilizer[map[string]Data]{},
+			Serializer: JSONSerializer[map[string]Data]{},
 		},
 		"Redis": {
 			Cache:      redisCache,
 			Locker:     redisLock,
 			Retry:      20 * time.Millisecond,
 			TTL:        3 * time.Second,
-			Serializer: testDeserilizer[map[string]Data]{},
+			Serializer: JSONSerializer[map[string]Data]{},
 		},
 		"Redigo": {
 			Cache:      redigoCache,
 			Locker:     redigoLock,
 			Retry:      20 * time.Millisecond,
 			TTL:        3 * time.Second,
-			Serializer: testDeserilizer[map[string]Data]{},
+			Serializer: JSONSerializer[map[string]Data]{},
 		},
 	}
 
