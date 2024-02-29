@@ -95,6 +95,10 @@ github.com/moeryomenko/memsync v0.1.1 h1:cmiz64DivyeBxI1YCocGuvpfNxkXQf+rAL+Tq8X
 github.com/moeryomenko/memsync v0.1.1/go.mod h1:pzSULapjPrlMOx0k/3Bdakx5N5OZyRK43tRMgBYa4WI=
 github.com/moeryomenko/suppressor v1.0.0 h1:BlbiaoHz1H5OMA3nJp0ux/xcycUJGm0N5Xx3dFzFHEA=
 github.com/moeryomenko/suppressor v1.0.0/go.mod h1:dm+NLpMpf+4Hz2/3XrAJRKVexGQn5Br7Q3rZf4LQpek=
+github.com/moeryomenko/suppressor v1.1.0 h1:JzTjR5+XwdovdWzJwJKu+HJMrPM59CZcDFzQx31yQ4o=
+github.com/moeryomenko/suppressor v1.1.0/go.mod h1:dm+NLpMpf+4Hz2/3XrAJRKVexGQn5Br7Q3rZf4LQpek=
+github.com/moeryomenko/suppressor v1.2.0 h1:yowVxgmbOWPo5kS6g6kqfNT4dI4rCRj6Pxz8Zt2eAFY=
+github.com/moeryomenko/suppressor v1.2.0/go.mod h1:dm+NLpMpf+4Hz2/3XrAJRKVexGQn5Br7Q3rZf4LQpek=
 github.com/moeryomenko/synx v0.11.0 h1:JisHVC6e8beGK1wQbnWB7lHmWblwcwF4LRaKXL5VFh8=
 github.com/moeryomenko/synx v0.11.0/go.mod h1:IlLIdxG6qnQGAkNWuWYUAu/A+XJbuZ+a3MrbVMH86Z4=
 github.com/moeryomenko/ttlcache v1.2.0 h1:ZoEk32ehzJyMTWCy3iHiL859JvtZvmO0nFkNTlKMepw=

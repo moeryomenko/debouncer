@@ -11,7 +11,6 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/moeryomenko/debouncer/adapters"
-	"github.com/moeryomenko/suppressor"
 	"github.com/moeryomenko/synx"
 	cache "github.com/moeryomenko/ttlcache"
 	"github.com/orlangure/gnomock"
@@ -65,9 +64,9 @@ func TestDebouncer(t *testing.T) {
 	redisCache, redisLock := adapters.NewRedisDriver(redis.NewClient(&redis.Options{Addr: red.DefaultAddress()}))
 
 	redigoCache, redigoLock := adapters.NewRedigoDriver(&redigo.Pool{
-		MaxIdle: 3,
+		MaxIdle:     3,
 		IdleTimeout: time.Second,
-		Dial: func() (redigo.Conn, error) {return redigo.Dial("tcp", red.DefaultAddress())},
+		Dial:        func() (redigo.Conn, error) { return redigo.Dial("tcp", red.DefaultAddress()) },
 	})
 
 	testcases := map[string]Distributed[map[string]Data]{
@@ -100,7 +99,7 @@ func TestDebouncer(t *testing.T) {
 		testcase := testcase
 
 		t.Run(name, func(t *testing.T) {
-			key := `test`+name
+			key := `test` + name
 			counter := int32(0)
 			testService := func(context.Context) (map[string]Data, error) {
 				<-time.After(time.Second)
@@ -111,7 +110,7 @@ func TestDebouncer(t *testing.T) {
 			// run instances.
 			instanceGroup := synx.NewCtxGroup(context.Background())
 			for instance := 0; instance < 3; instance++ {
-				instance := instance+1
+				instance := instance + 1
 
 				instanceGroup.Go(func(ctx context.Context) error {
 					ctx, cancel := context.WithCancel(ctx)
@@ -119,7 +118,7 @@ func TestDebouncer(t *testing.T) {
 
 					localCache := Local[map[string]Data]{
 						TTL:   time.Second,
-						Cache: cache.NewCache[string, suppressor.Result[map[string]Data]](ctx, 100),
+						Cache: cache.NewCache[string, map[string]Data](ctx, 100),
 					}
 
 					d, err := NewDebouncer(Config[map[string]Data]{
@@ -132,7 +131,7 @@ func TestDebouncer(t *testing.T) {
 					requests := 10
 					group := synx.NewCtxGroup(context.Background())
 					for requestID := 0; requestID < requests; requestID++ {
-						requestID := requestID+1
+						requestID := requestID + 1
 
 						group.Go(func(ctx context.Context) error {
 							timedRun(t, fmt.Sprintf(`instance%d_request%d`, instance, requestID), func(t *testing.T) {
