@@ -7,7 +7,7 @@ require (
 	github.com/go-redsync/redsync/v4 v4.9.4
 	github.com/gomodule/redigo v1.8.9
 	github.com/moeryomenko/memsync v0.1.1
-	github.com/moeryomenko/suppressor v1.2.0
+  github.com/moeryomenko/suppressor v1.3.0
 	github.com/moeryomenko/synx v0.11.0
 	github.com/moeryomenko/ttlcache v1.2.0
 	github.com/orlangure/gnomock v0.30.0

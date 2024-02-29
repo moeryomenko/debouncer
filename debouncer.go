@@ -60,11 +60,9 @@ func NewDebouncer[V any](cfg Config[V]) (*Debouncer[V], error) {
 // The return a channel that will receive the
 // results when they are ready.
 func (d *Debouncer[V]) Do(ctx context.Context, key string, closure Closure[V]) (V, error) {
-	result, err := d.localGroup.Do(key, func() (V, error) {
+	return d.localGroup.Do(key, func() (V, error) {
 		return d.distributedGroup.Do(ctx, key, closure)
 	})
-
-	return result, err
 }
 
 // DistributedGroup suppress duplicated calls.
